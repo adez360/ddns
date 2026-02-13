@@ -1,4 +1,4 @@
-use std::{fs, path::Path, time::Duration, sync::Arc, net::IpAddr, process};
+use std::{fs, time::Duration, sync::Arc, net::IpAddr, process};
 use reqwest::Client;
 use serde::Deserialize;
 use serde_json::json;
@@ -63,7 +63,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         eprintln!("找不到設定檔 {}", CONFIG_PATH);
         process::exit(1);
     };
-    // 使用 Arc 包裝設定，讓多執行緒共享同一份資料而不需 Clone
+    
     let config = Arc::new(serde_json::from_str::<Config>(&content)?);
     let client = Client::builder().timeout(Duration::from_secs(10)).build()?;
 
@@ -75,16 +75,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let current_v6 = v6_res.unwrap_or_default();
     
     let combined = format!("{current_v4}|{current_v6}");
-    if Path::new(CACHE_FILE).exists() && fs::read_to_string(CACHE_FILE).ok()?.trim() == combined {
-        return Ok(());
+    
+    // 修正編譯錯誤：使用 if let 處理快取比對
+    if let Ok(last_ip) = fs::read_to_string(CACHE_FILE) {
+        if last_ip.trim() == combined {
+            println!("IP 未變動，跳過更新。");
+            return Ok(());
+        }
     }
 
     let mut tasks = vec![];
-    for (ip, rec_id, rec_type) in [(current_v4, &config.record_a_id, "A"), (current_v6, &config.record_aaaa_id, "AAAA")] {
+    
+    // 修正編譯錯誤：這裡將 rec_id 從 &String 改為 clone() 出來的 String，確保任務擁有資料
+    for (ip, rec_id, rec_type) in [(current_v4, config.record_a_id.clone(), "A"), (current_v6, config.record_aaaa_id.clone(), "AAAA")] {
         if !ip.is_empty() {
-            let (c, cfg, ip_val) = (client.clone(), Arc::clone(&config), ip.clone());
+            let (c, cfg, ip_val, id_val) = (client.clone(), Arc::clone(&config), ip.clone(), rec_id);
             tasks.push(tokio::spawn(async move {
-                let _ = update_record(&c, &cfg, rec_id, rec_type, &ip_val).await;
+                let _ = update_record(&c, &cfg, &id_val, rec_type, &ip_val).await;
             }));
         }
     }
