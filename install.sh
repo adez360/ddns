@@ -12,7 +12,7 @@ echo -e "${GREEN}==========================================${NC}"
 
 # 1. 互動式輸入
 read -p "請貼上您的 Cloudflare API Token: " CF_TOKEN
-read -p "請輸入您的主要網域 (例如 adex360.com): " ROOT_DOMAIN
+read -p "請輸入您的主要網域 (例如example.com): " ROOT_DOMAIN
 read -p "請輸入您要使用的子網域 (例如 pc, 留空則使用主網域): " SUBDOMAIN
 
 # 處理完整網域名稱
